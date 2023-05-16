@@ -1,5 +1,5 @@
 /* eslint-disable no-constant-condition */
-import { NS } from "@ns";
+import { NS, NetscriptPort } from "@ns";
 
 const TIMEOUT_SECONDS = 10;
 export class Message {
@@ -43,8 +43,8 @@ export class Message {
 export class Transceiver {
   ns: NS;
   source: string;
-  tx: import("../NetscriptDefinitions").NetscriptPort;
-  rx: import("../NetscriptDefinitions").NetscriptPort;
+  tx: NetscriptPort;
+  rx: NetscriptPort;
   messagesSent: number;
   messagesReceived: number;
   resendAtRxCount: number;

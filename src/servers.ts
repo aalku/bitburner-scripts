@@ -1,5 +1,5 @@
 /* eslint-disable no-constant-condition */
-import { NS, ScriptArg } from "@ns";
+import { NS, ScriptArg, Server } from "@ns";
 
 let portOpenTools = 0;
 
@@ -21,7 +21,7 @@ function shortestPath(ns: NS, sw: ServerWrapper) {
 class ServerWrapper {
   name: string;
   path: string[];
-  metadata: import("../NetscriptDefinitions").Server;
+  metadata: Server;
 
   updatePath(path2: string[]) {
     if (!this.path || (path2 && this.path.length < this.path.length)) {
