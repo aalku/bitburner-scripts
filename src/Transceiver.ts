@@ -5,7 +5,7 @@ const TIMEOUT_SECONDS = 10;
 export class Message {
   source: string;
   target: string;
-  data: unknown;
+  data: any;
   id: number | null;
   timeout: number | null;
 
@@ -30,7 +30,7 @@ export class Message {
   /** @returns {Message} */
   static parse(smsg: string): Message {
     const x = JSON.parse(smsg);
-    function p({ source, target, data, id, timeout }): Message {
+    function p({ source, target, data, id, timeout } : any): Message {
       return new Message(source, target, data, id, timeout);
     }
     const x2 = p(x);

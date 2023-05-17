@@ -9,7 +9,7 @@ import { HelperClient } from "helper_API_client.js";
 export async function main(ns: NS): Promise<void> {
   const target = ns.args[0] as string; // Target hostname
   const hostname = ns.args[1] as string; // This hostname
-  const threads = ns.args[2] as string; // Should be the same as -t threads
+  const threads = ns.args[2] as number; // Should be the same as -t threads
   const tail = true;
 
   ns.clearLog();

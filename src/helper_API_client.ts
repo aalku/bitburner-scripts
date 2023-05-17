@@ -1,14 +1,18 @@
-import { Transceiver } from "Transceiver.js";
+import { NS } from "@ns";
+import { Transceiver } from "Transceiver";
 
 /**
  * @param {NS} ns
  */
 export class HelperClient {
+	ns: NS;
+	port: Transceiver;
+
 	/**
 	 * @param {NS} ns
 	 * @param {string} uniqueName Optinal, must identify the client uniquely across all the network
 	 */
-	constructor(ns, uniqueName) {
+	constructor(ns: NS, uniqueName: string) {
 		/**
 		 * @type {NS} ns
 		 */
@@ -21,7 +25,7 @@ export class HelperClient {
 		/** @type { Transceiver } */
 		this.port = new Transceiver(ns, uniqueName, PORT_REQUEST, PORT_RESPONSE);
 	}
-	async getHackingAdvice(target, threads) {
+	async getHackingAdvice(target: string, threads: number) {
 		let msgId = await this.port.send("HelperServer", { order: "getHackingAdviceOnTarget", target, threads });
 		if (!msgId) {
 			throw "Timeout writing to port";
@@ -45,7 +49,7 @@ export class HelperClient {
  * 
  * @param {NS} ns
  */
-export async function main(ns): Promise<void> {
+export async function main(ns: NS): Promise<void> {
 	ns.clearLog();
 	ns.tail();
 
@@ -57,8 +61,8 @@ export async function main(ns): Promise<void> {
 	});
 
 
-	let target = ns.args[0];
-	let threads = ns.args[1];
+	let target = ns.args[0] as string;
+	let threads = ns.args[1] as number;
 
 	let advice = await client.getHackingAdvice(target, threads);
 
