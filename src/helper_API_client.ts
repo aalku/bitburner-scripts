@@ -26,7 +26,7 @@ export class HelperClient {
 		this.port = new Transceiver(ns, uniqueName, PORT_REQUEST, PORT_RESPONSE);
 	}
 	async getHackingAdvice(target: string, threads: number) {
-		let msgId = await this.port.send("HelperServer", { order: "getHackingAdviceOnTarget", target, threads });
+		let msgId = await this.port.send("HelperServer", { method: "getHackingAdviceOnTarget", target, threads });
 		if (!msgId) {
 			throw "Timeout writing to port";
 		} else {
@@ -34,11 +34,14 @@ export class HelperClient {
 			if (!msg) {
 				throw "Timeout awaiting for server response";
 			}
-			if (msg.data.advices == undefined) {
+			if (msg.data?.advices == undefined) {
 				throw `Unknown answer format: ${JSON.stringify(msg.data, null, "  ")}`;
 			}
-			return msg.data.advices;
+			return msg.data?.advices;
 		}
+	}
+	async reportTaskCompleted(task: any, result: any) {
+		this.port.send("HelperServer", { method: "reportTaskCompleted", task, result });
 	}
 }
 

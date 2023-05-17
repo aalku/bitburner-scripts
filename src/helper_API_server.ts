@@ -10,14 +10,25 @@ const PORT_RESPONSE = 2;
  * @param {any} msg
  * @returns {any}
  */
-function work(ns: NS, msg: Message) {
-	if (msg.data.order == "getHackingAdviceOnTarget") {
+function work(ns: NS, msg: Message): any {
+	if (msg.data.method == "getHackingAdviceOnTarget") {
 		let target = msg.data.target;
 		let threads = msg.data.threads;
 
 		let response = { advices: getHackingAdvice(ns, target, threads) };
+        ns.print(`response = ${JSON.stringify(response)}`);
 		return response;
-	} else {
+	} else if (msg.data.method == "reportTaskCompleted") {
+        let task: any = msg.data.task;
+        let result: any = msg.data.result;
+        if (task.action == "hack") {
+            if (result as number > 0) {
+                ns.toast(`Hacked $${ns.formatNumber(result as number)} from ${task.target}!!`, "success", 5000);
+            } else {
+                ns.toast(`Hacking ${task.target} failed!!`, "warning", 3000);
+            }
+        }
+    } else {
 		return { error: "Couldn't understand your order: " + JSON.stringify(msg.data, null, "  ") };
 	}
 }
@@ -44,6 +55,7 @@ export async function main(ns: NS) {
 			} catch (e) {
 				ns.print("Helper API server error: " + e);
 				ns.toast("Helper API server error: " + e, "error");
+                await new Promise((r) => setTimeout(r, 1));
 			}
 		} else {
 			// let forTime = lmt == null ? "infinite" : ns.tFormat(Date.now() - lmt);

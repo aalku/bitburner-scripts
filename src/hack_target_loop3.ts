@@ -28,7 +28,8 @@ export async function main(ns: NS): Promise<void> {
       try {
         advice = await client.getHackingAdvice(target, threads);
       } catch (error) {
-        ns.toast("Helper Server didn't respond");
+        ns.toast("Helper Server didn't respond: " + error);
+        await new Promise((r) => setTimeout(r, 100));
       }
     } while (!advice);
     advice = advice.splice(0, 1); // No concurrency allowed
@@ -40,6 +41,7 @@ export async function main(ns: NS): Promise<void> {
         ).toISOString()}`
       );
       let res;
+      item.target = target;
       if (item.action == "weaken") {
         res = await ns.weaken(target, { threads: item.threads });
       } else if (item.action == "grow") {
@@ -51,6 +53,7 @@ export async function main(ns: NS): Promise<void> {
       }
       const msg = `${item.action} result is ${res}`;
       ns.print(msg);
+      client.reportTaskCompleted(item, res);
     }
   }
 }
