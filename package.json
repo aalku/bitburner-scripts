@@ -11,14 +11,18 @@
   },
   "author": "hydroflame, Hoekstraa, based on work by SlyCedix",
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.35.1",
-    "@typescript-eslint/parser": "^5.35.1",
+    "@typescript-eslint/eslint-plugin": "^5.59.6",
+    "@typescript-eslint/parser": "^5.59.6",
     "bitburner-filesync": "^1.1.5",
     "chokidar": "^3.5.3",
-    "concurrently": "^7.4.0",
-    "eslint": "^8.22.0",
+    "concurrently": "^7.6.0",
+    "eslint": "^8.40.0",
     "fast-glob": "^3.2.12",
-    "sync-directory": "^5.1.7",
-    "typescript": "^4.7.4"
+    "sync-directory": "^5.1.9",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "fs": "0.0.1-security",
+    "nvm": "0.0.4"
   }
 }
