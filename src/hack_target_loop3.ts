@@ -10,7 +10,6 @@ export async function main(ns: NS): Promise<void> {
   const target = ns.args[0] as string; // Target hostname
   const hostname = ns.args[1] as string; // This hostname
   const threads = ns.args[2] as string; // Should be the same as -t threads
-  const toast = true;
   const tail = true;
 
   ns.clearLog();
@@ -52,9 +51,6 @@ export async function main(ns: NS): Promise<void> {
       }
       const msg = `${item.action} result is ${res}`;
       ns.print(msg);
-      if (toast) {
-        ns.toast(msg);
-      }
     }
   }
 }
