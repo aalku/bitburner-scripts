@@ -1,6 +1,7 @@
 import { NS } from "@ns";
 import { Transceiver, Message } from "Transceiver";
 import { getHackingAdvice } from "HackingAdvice";
+import { HackingStatisticsManager } from "./HackingStatistics";
 
 const PORT_REQUEST = 1;
 const PORT_RESPONSE = 2;
@@ -22,6 +23,8 @@ function work(ns: NS, msg: Message): any {
         let task: any = msg.data.task;
         let result: any = msg.data.result;
         if (task.action == "hack") {
+            HackingStatisticsManager.instance.hackResult(msg.source, task.target, result);
+            ns.tprint(JSON.stringify([...HackingStatisticsManager.instance._statistics.entries()]));
             if (result as number > 0) {
                 ns.toast(`Hacked $${ns.formatNumber(result as number, 0, undefined, true)} from ${task.target}!!`, "success", 5000);
             } else {
