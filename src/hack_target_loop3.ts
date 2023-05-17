@@ -28,8 +28,8 @@ export async function main(ns: NS): Promise<void> {
       try {
         advice = await client.getHackingAdvice(target, threads);
       } catch (error) {
-        ns.toast("Helper Server didn't respond: " + error);
-        await new Promise((r) => setTimeout(r, 100));
+        ns.toast("Helper Server didn't respond (will retry in 1s): " + error);
+        await new Promise((r) => setTimeout(r, 1000));
       }
     } while (!advice);
     advice = advice.splice(0, 1); // No concurrency allowed
@@ -53,7 +53,12 @@ export async function main(ns: NS): Promise<void> {
       }
       const msg = `${item.action} result is ${res}`;
       ns.print(msg);
-      client.reportTaskCompleted(item, res);
+      try {
+        await client.reportTaskCompleted(item, res);
+			} catch (error) {
+        ns.toast("Error sending task report: " + error);
+        await new Promise((r) => setTimeout(r, 1000));
+  		}
     }
   }
 }

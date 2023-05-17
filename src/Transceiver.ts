@@ -41,6 +41,7 @@ export class Message {
   }
 }
 export class Transceiver {
+
   ns: NS;
   source: string;
   tx: NetscriptPort;
@@ -125,7 +126,7 @@ export class Transceiver {
    * @param {any} data
    * @return {Promise<number>}
    */
-  async send(target: string, data: unknown, id: number | null = null) {
+  async send(target: string, data: unknown, id: number | null = null): Promise<number | null> {
     const msg = new Message(this.source, target, data, id);
     const smsg = JSON.stringify(msg);
     while (true) {
@@ -198,4 +199,10 @@ export class Transceiver {
       }
     }
   }
+
+  tryUnread(msg: Message) {
+    const smsg = JSON.stringify(msg);
+    return this.rx.tryWrite(smsg);
+  }
+
 }
