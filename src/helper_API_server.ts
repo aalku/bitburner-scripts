@@ -60,6 +60,9 @@ function work(ns: NS, msg: Message): any {
 
 /** @param {NS} ns */
 export async function main(ns: NS) {
+
+  ensureNotTemporary(ns);
+
   /** @type {Transceiver} */
   const port = new Transceiver(ns, "HelperServer", PORT_RESPONSE, PORT_REQUEST);
 
@@ -116,3 +119,13 @@ function loadHackStatistics(ns: NS) {
     HackingStatisticsManager.instance.import(JSON.stringify(ns.read(hackStatisticsFilename)));
   }
 }
+
+/* I don't know what I'm doing */
+function ensureNotTemporary(ns: NS) {
+  const s = ns.getRunningScript() as any;
+  console.log(s);
+  if (s && s.temporary) {
+      ns.spawn(s.filename, s.threads, ns.args as any);
+  }
+}
+

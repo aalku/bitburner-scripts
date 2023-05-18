@@ -34,12 +34,21 @@ class TargetStatistics {
 }
 
 export class HackingStatisticsManager {
+  getTargets() {
+	  return this._statistics.keys();
+  }
+  constructor(importDataObject=null) {
+    if (importDataObject) {
+      this.import(importDataObject);
+    }
+  }
   export() {
     return [...this._statistics.entries()].map((e) => ({ server: e[0], data: e[1] })); // TODO
   }
-  import(plainObject: Object) {
-    return; // TODO
-    const array = plainObject as {server: string, data: any}[];
+  import(plainObject: any, printFunction: Function = () => null) {
+    // printFunction(`debug: plainObject = ${JSON.stringify(plainObject)}`);
+    const array = plainObject as { server: string, data: any }[];
+    // printFunction(`debug: plainObject as array = ${JSON.stringify(array)}`);
     this._statistics.clear();
     for (const e of array) {
       const server = e.server;
@@ -57,10 +66,10 @@ export class HackingStatisticsManager {
    * @param result {number} Hacking result ($, 0=fail)
    */
   hackResult(hacker: string, target: string, result: number) {
-    this._getTargetStatistics(target).hackResult(hacker, result);
+    this.getTargetStatistics(target).hackResult(hacker, result);
   }
 
-  _getTargetStatistics(target: string) {
+  getTargetStatistics(target: string) {
     let s = this._statistics.get(target);
     if (!s) {
       s = new TargetStatistics();

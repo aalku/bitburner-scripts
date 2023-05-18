@@ -1,5 +1,6 @@
 import { NS } from "@ns";
 import { Transceiver } from "Transceiver";
+import { HackingStatisticsManager } from "HackingStatistics";
 
 /**
  * @param {NS} ns
@@ -52,7 +53,7 @@ export class HelperClient {
 			if (!msg) {
 				throw "Timeout awaiting for server response";
 			}
-			return msg.data;
+			return msg.data?.statistics;
 		}
 	}
 }
@@ -65,6 +66,7 @@ export class HelperClient {
  * @param {NS} ns
  */
 export async function main(ns: NS): Promise<void> {
+
 	let myName = `${ns.getHostname()} - ${ns.getScriptName()} - ${JSON.stringify([...ns.args])}`;
 	let client = new HelperClient(ns, myName);
 
@@ -83,7 +85,56 @@ export async function main(ns: NS): Promise<void> {
 
 		ns.tprint(`Hacking advice received: ${JSON.stringify(advice, null, "  ")}`)
 	} else if (order == "hackingStatistics") {
-		let statistics = await client.getHackingStatistics();
-		ns.tprint(`Hacking statistics received: ${JSON.stringify(statistics, null, "  ")}`)
+		let statistics = new HackingStatisticsManager(await client.getHackingStatistics());
+		// ns.tprint(`Hacking statistics received: ${JSON.stringify(statistics.export(), null, "  ")}`)
+		const text = [];
+		const alerts = [];
+		let moneyPerSecondTotal: number = 0;
+		const ts = Date.now();
+		for (const target of statistics.getTargets()) {
+			const targetStatistics = statistics.getTargetStatistics(target);
+			const tgs = targetStatistics.globalStatistics;
+			const duration = (tgs.firstHackTimestamp && ts) ? (ts - tgs.firstHackTimestamp) : null;
+			const hackAttempts = tgs.hackSuccessTimes + tgs.hackFailTimes;
+			let obj;
+            if (duration && hackAttempts) {
+				const avgTimeBetweenHackAttempts = (hackAttempts > 1) ? duration / (hackAttempts - 1) : null;
+				const durationAdjusted = duration + (avgTimeBetweenHackAttempts  || 0);
+				const moneyPerSecond: number = tgs.hackedMoney / durationAdjusted * 1000;
+				const timeSinceLastHackAttempt = tgs.lastHackTimestamp ? Date.now() - tgs.lastHackTimestamp : null;
+				moneyPerSecondTotal += moneyPerSecond || 0;
+				obj = {
+					moneyPerSecond: tgs.hackSuccessTimes ? `$${moneyPerSecond ? ns.formatNumber(moneyPerSecond, 1) : null}` : null,
+					totalHackedMoney: `$${ns.formatNumber(tgs.hackedMoney, 1)}`,
+					totalHackedMoneyPerSuccess: tgs.hackSuccessTimes ? `$${ns.formatNumber(tgs.hackedMoney / tgs.hackSuccessTimes, 1)}` : null,
+					avgTimeBetweenHackAttempts: `${avgTimeBetweenHackAttempts ? ns.tFormat(avgTimeBetweenHackAttempts) : null}`,
+					hacksAttempted: `${ns.formatNumber(hackAttempts, 0)}`,
+					hackSuccesses: `${ns.formatPercent(tgs.hackSuccessTimes / (tgs.hackSuccessTimes + tgs.hackFailTimes), 0)}`,
+					totalDuration: `${duration ? ns.tFormat(duration) : null}`,
+					lastHackResult: `$${tgs.lastHackResult ? ns.formatNumber(tgs.lastHackResult, 1) : null}`,
+					lastHackHacker: targetStatistics.lastHackHacker,
+				};
+				if (timeSinceLastHackAttempt && avgTimeBetweenHackAttempts && timeSinceLastHackAttempt > avgTimeBetweenHackAttempts) {
+					alerts.push(`Alarm at ${target}: Expected one hack attempt every ${ns.tFormat(avgTimeBetweenHackAttempts)} but last was ${ns.tFormat(timeSinceLastHackAttempt)} ago`);
+				}
+			} else {
+				obj = {};
+			}
+			text.push(`${target}:  ${JSON.stringify(obj, null, "    ")}`);
+		}
+		text.push(`moneyPerSecondTotal: $${ns.formatNumber(moneyPerSecondTotal, 1)}`)
+		text.push(`moneyPerHourTotal:   $${ns.formatNumber(moneyPerSecondTotal * 60 * 60, 1)}`)
+		text.push(`moneyPerDayTotal:    $${ns.formatNumber(moneyPerSecondTotal * 60 * 60 * 24, 1)}`)
+		if (alerts) {
+			text.push("Alerts:");
+			for (const a of alerts) {
+				text.push(`  ${a}`);
+			}
+		}
+		ns.tprint("...\r\n" + text.join("\r\n"));
+	} else if (order == "hackingStatisticsRaw") {
+		let statistics = new HackingStatisticsManager(await client.getHackingStatistics());
+		ns.tprint(`Hacking statistics received: \r\n${JSON.stringify(statistics.export(), null, "  ")}`)
 	}
+
 }
