@@ -34,14 +34,12 @@ class TargetStatistics {
 }
 
 export class HackingStatisticsManager {
-  serialize(): string {
-    return JSON.stringify(
-      [...this._statistics.entries()].map((e) => ({ server: e[0], data: e[1] }))
-    );
+  export() {
+    return [...this._statistics.entries()].map((e) => ({ server: e[0], data: e[1] })); // TODO
   }
-  loadFrom(jsonData: string) {
+  import(plainObject: Object) {
     return; // TODO
-    const array = JSON.parse(jsonData);
+    const array = plainObject as {server: string, data: any}[];
     this._statistics.clear();
     for (const e of array) {
       const server = e.server;

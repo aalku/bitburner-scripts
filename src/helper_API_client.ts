@@ -43,6 +43,18 @@ export class HelperClient {
 	async reportTaskCompleted(task: any, result: any) {
 		this.port.send("HelperServer", { method: "reportTaskCompleted", task, result });
 	}
+	async getHackingStatistics() {
+		let msgId = await this.port.send("HelperServer", { method: "getHackingStatistics" });
+		if (!msgId) {
+			throw "Timeout writing to port";
+		} else {
+			let msg = await this.port.receive(msgId);
+			if (!msg) {
+				throw "Timeout awaiting for server response";
+			}
+			return msg.data;
+		}
+	}
 }
 
 /** 
@@ -53,21 +65,25 @@ export class HelperClient {
  * @param {NS} ns
  */
 export async function main(ns: NS): Promise<void> {
-	ns.clearLog();
-	ns.tail();
-
 	let myName = `${ns.getHostname()} - ${ns.getScriptName()} - ${JSON.stringify([...ns.args])}`;
 	let client = new HelperClient(ns, myName);
 
 	ns.atExit(() => {
 		// ns.print(`Statistics: ${JSON.stringify(client.port.getStatistics(), null, "  ")} }`);
+		// ns.tail();
 	});
 
+	let order = ns.args[0] as string;
 
-	let target = ns.args[0] as string;
-	let threads = ns.args[1] as number;
+	if (order == "hackingAdvice") {
+		let target = ns.args[1] as string;
+		let threads = ns.args[2] as number;
 
-	let advice = await client.getHackingAdvice(target, threads);
+		let advice = await client.getHackingAdvice(target, threads);
 
-	ns.print(`Hacking advice received: ${JSON.stringify(advice, null, "  ")}`)
+		ns.tprint(`Hacking advice received: ${JSON.stringify(advice, null, "  ")}`)
+	} else if (order == "hackingStatistics") {
+		let statistics = await client.getHackingStatistics();
+		ns.tprint(`Hacking statistics received: ${JSON.stringify(statistics, null, "  ")}`)
+	}
 }

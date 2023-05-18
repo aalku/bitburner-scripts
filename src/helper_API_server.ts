@@ -19,7 +19,6 @@ function work(ns: NS, msg: Message): any {
     const threads = msg.data.threads;
 
     const response = { advices: getHackingAdvice(ns, target, threads) };
-    ns.print(`response = ${JSON.stringify(response)}`);
     return response;
   } else if (msg.data.method == "reportTaskCompleted") {
     const task: any = msg.data.task;
@@ -30,9 +29,7 @@ function work(ns: NS, msg: Message): any {
         task.target,
         result
       );
-      ns.tprint(
-        HackingStatisticsManager.instance.serialize()
-      );
+      // ns.tprint( JSON.stringify(HackingStatisticsManager.instance.export() ) );
       if ((result as number) > 0) {
         ns.toast(
           `Hacked $${ns.formatNumber(
@@ -49,6 +46,9 @@ function work(ns: NS, msg: Message): any {
       }
     }
     return null;
+  } else if (msg.data.method == "getHackingStatistics") {
+    const response = { statistics: HackingStatisticsManager.instance.export() };
+    return response;
   } else {
     return {
       error:
@@ -92,14 +92,11 @@ export async function main(ns: NS) {
     msg = await port.receive();
     if (msg) {
       lmt = Date.now();
-      ns.print(
-        new Date().toISOString() +
-          " - " +
-          `Server received message: ${JSON.stringify(msg)}`
-      );
+      // ns.print(`${new Date().toISOString()} - Server received message: ${JSON.stringify(msg)}`);
       try {
         const response = work(ns, msg);
         if (response) {
+          // ns.print(`response = ${JSON.stringify(response)}`);
           await port.send(msg.source, response, msg.id);
         }
       } catch (e) {
@@ -116,6 +113,6 @@ export async function main(ns: NS) {
 
 function loadHackStatistics(ns: NS) {
   if (ns.fileExists(hackStatisticsFilename)) {
-    HackingStatisticsManager.instance.loadFrom(ns.read(hackStatisticsFilename));
+    HackingStatisticsManager.instance.import(JSON.stringify(ns.read(hackStatisticsFilename)));
   }
 }
