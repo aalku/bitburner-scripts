@@ -3,10 +3,10 @@
 import { NS } from "@ns";
 
 /** @param {NS} ns */
-export async function main(ns) {
+export async function main(ns: NS) {
   const operation = ns.args[0];
   if (operation == "rename") {
-    if (ns.renamePurchasedServer(ns.args[1], ns.args[2])) {
+    if (ns.renamePurchasedServer(ns.args[1] as string, ns.args[2] as string)) {
       ns.tprint(
         `Server was renamed successfully from ${ns.args[1]} to ${ns.args[2]}`
       );
@@ -14,36 +14,36 @@ export async function main(ns) {
       ns.tprint("Can't rename that server");
     }
   } else if (operation == "quote-buy-server") {
-    const money = ns.getPurchasedServerCost(ns.args[1]);
+    const money = ns.getPurchasedServerCost(ns.args[1] as number);
     ns.tprint(
       `Buying a server with ${ns.formatRam(
-        ns.args[1]
+        ns.args[1] as number
       )} would cost $${ns.formatNumber(money, 2)}`
     );
   } else if (operation == "buy-server") {
-    const money = ns.getPurchasedServerCost(ns.args[2]);
-    if (ns.purchaseServer(ns.args[1], ns.args[2])) {
+    const money = ns.getPurchasedServerCost(ns.args[2] as number);
+    if (ns.purchaseServer(ns.args[1] as string, ns.args[2] as number)) {
       ns.tprint(
         `Bought server ${ns.args[1]} with ${ns.formatRam(
-          ns.args[2]
+          ns.args[2] as number
         )} for $${ns.formatNumber(money, 2)}`
       );
     } else {
       ns.tprint("Could't make it");
     }
   } else if (operation == "quote-upgrade-server") {
-    const money = ns.getPurchasedServerUpgradeCost(ns.args[1], ns.args[2]);
+    const money = ns.getPurchasedServerUpgradeCost(ns.args[1] as string, ns.args[2] as number);
     ns.tprint(
       `Upgrading ${ns.args[1]} to ${ns.formatRam(
-        ns.args[2]
+        ns.args[2] as number
       )} would cost $${ns.formatNumber(money, 2)}`
     );
   } else if (operation == "upgrade-server") {
-    const money = ns.getPurchasedServerUpgradeCost(ns.args[1], ns.args[2]);
-    if (ns.upgradePurchasedServer(ns.args[1], ns.args[2])) {
+    const money = ns.getPurchasedServerUpgradeCost(ns.args[1] as string, ns.args[2] as number);
+    if (ns.upgradePurchasedServer(ns.args[1] as string, ns.args[2] as number)) {
       ns.tprint(
         `Server ${ns.args[1]} was upgraded to ${ns.formatRam(
-          ns.args[2]
+          ns.args[2] as number
         )} for $${ns.formatNumber(money, 2)}`
       );
     } else {
@@ -52,7 +52,7 @@ export async function main(ns) {
   }
 }
 
-export function autocomplete(data, args) {
+export function autocomplete(data: { servers: string[] }, args : string[]) {
   console.info("autocomplete", data, args);
   try {
     if (args?.length) {
@@ -99,11 +99,10 @@ export function autocomplete(data, args) {
               (value, index) => "" + Math.pow(2, index)
             );
           }
-        } else {
-          return [];
         }
       }
     }
+    return [];
   } catch (error) {
     console.error(error);
     throw error;

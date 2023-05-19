@@ -77,13 +77,21 @@ export async function main(ns: NS): Promise<void> {
 
 	let order = ns.args[0] as string;
 
+	const flags: any = ns.flags([["outputFile", "-"]]);
+	
+	let printFunction = ns.tprint;
+	if (flags.outputFile != '-') {
+		ns.rm(flags.outputFile);
+		printFunction = data=>ns.write(flags.outputFile, data, "a");
+	}
+
 	if (order == "hackingAdvice") {
 		let target = ns.args[1] as string;
 		let threads = ns.args[2] as number;
 
 		let advice = await client.getHackingAdvice(target, threads);
 
-		ns.tprint(`Hacking advice received: ${JSON.stringify(advice, null, "  ")}`)
+		printFunction(`Hacking advice received: ${JSON.stringify(advice, null, "  ")}`)
 	} else if (order == "hackingStatistics") {
 		let statistics = new HackingStatisticsManager(await client.getHackingStatistics());
 		// ns.tprint(`Hacking statistics received: ${JSON.stringify(statistics.export(), null, "  ")}`)
@@ -114,7 +122,7 @@ export async function main(ns: NS): Promise<void> {
 					lastHackResult: `$${tgs.lastHackResult ? ns.formatNumber(tgs.lastHackResult, 1) : null}`,
 					lastHackHacker: targetStatistics.lastHackHacker,
 				};
-				if (timeSinceLastHackAttempt && avgTimeBetweenHackAttempts && timeSinceLastHackAttempt > avgTimeBetweenHackAttempts) {
+				if (timeSinceLastHackAttempt && avgTimeBetweenHackAttempts && timeSinceLastHackAttempt > avgTimeBetweenHackAttempts * 2) {
 					alerts.push(`Alarm at ${target}: Expected one hack attempt every ${ns.tFormat(avgTimeBetweenHackAttempts)} but last was ${ns.tFormat(timeSinceLastHackAttempt)} ago`);
 				}
 			} else {
@@ -131,10 +139,10 @@ export async function main(ns: NS): Promise<void> {
 				text.push(`  ${a}`);
 			}
 		}
-		ns.tprint("...\r\n" + text.join("\r\n"));
+		printFunction("...\r\n" + text.join("\r\n"));
 	} else if (order == "hackingStatisticsRaw") {
 		let statistics = new HackingStatisticsManager(await client.getHackingStatistics());
-		ns.tprint(`Hacking statistics received: \r\n${JSON.stringify(statistics.export(), null, "  ")}`)
+		printFunction(`Hacking statistics received: \r\n${JSON.stringify(statistics.export(), null, "  ")}`)
 	}
 
 }
