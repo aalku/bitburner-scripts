@@ -97,7 +97,8 @@ export async function main(ns: NS): Promise<void> {
 		// ns.tprint(`Hacking statistics received: ${JSON.stringify(statistics.export(), null, "  ")}`)
 		const text = [];
 		const alerts = [];
-		let moneyPerSecondTotal: number = 0;
+		let moneyPerSecondTotal = 0;
+		let moneyPerSecondUncomplete = false;
 		const ts = Date.now();
 		for (const target of statistics.getTargets()) {
 			const targetStatistics = statistics.getTargetStatistics(target);
@@ -108,11 +109,14 @@ export async function main(ns: NS): Promise<void> {
             if (duration && hackAttempts) {
 				const avgTimeBetweenHackAttempts = (hackAttempts > 1) ? duration / (hackAttempts - 1) : null;
 				const durationAdjusted = duration + (avgTimeBetweenHackAttempts  || 0);
-				const moneyPerSecond: number = tgs.hackedMoney / durationAdjusted * 1000;
+				const moneyPerSecond = tgs.hackSuccessTimes >= 2 ? tgs.hackedMoney / durationAdjusted * 1000 : null;
+				if (moneyPerSecond == null) {
+					moneyPerSecondUncomplete = true;
+				}
 				const timeSinceLastHackAttempt = tgs.lastHackTimestamp ? Date.now() - tgs.lastHackTimestamp : null;
 				moneyPerSecondTotal += moneyPerSecond || 0;
 				obj = {
-					moneyPerSecond: tgs.hackSuccessTimes ? `$${moneyPerSecond ? ns.formatNumber(moneyPerSecond, 1) : null}` : null,
+					moneyPerSecond: moneyPerSecond ? `$${moneyPerSecond ? ns.formatNumber(moneyPerSecond, 1) : null}` : null,
 					totalHackedMoney: `$${ns.formatNumber(tgs.hackedMoney, 1)}`,
 					totalHackedMoneyPerSuccess: tgs.hackSuccessTimes ? `$${ns.formatNumber(tgs.hackedMoney / tgs.hackSuccessTimes, 1)}` : null,
 					avgTimeBetweenHackAttempts: `${avgTimeBetweenHackAttempts ? ns.tFormat(avgTimeBetweenHackAttempts) : null}`,
@@ -130,9 +134,10 @@ export async function main(ns: NS): Promise<void> {
 			}
 			text.push(`${target}:  ${JSON.stringify(obj, null, "    ")}`);
 		}
-		text.push(`moneyPerSecondTotal: $${ns.formatNumber(moneyPerSecondTotal, 1)}`)
-		text.push(`moneyPerHourTotal:   $${ns.formatNumber(moneyPerSecondTotal * 60 * 60, 1)}`)
-		text.push(`moneyPerDayTotal:    $${ns.formatNumber(moneyPerSecondTotal * 60 * 60 * 24, 1)}`)
+		const gtSymbol = moneyPerSecondUncomplete ? ">" : "";
+		text.push(`moneyPerSecondTotal: ${gtSymbol}$${ns.formatNumber(moneyPerSecondTotal, 1)}`)
+		text.push(`moneyPerHourTotal:   ${gtSymbol}$${ns.formatNumber(moneyPerSecondTotal * 60 * 60, 1)}`)
+		text.push(`moneyPerDayTotal:    ${gtSymbol}$${ns.formatNumber(moneyPerSecondTotal * 60 * 60 * 24, 1)}`)
 		if (alerts) {
 			text.push("Alerts:");
 			for (const a of alerts) {
