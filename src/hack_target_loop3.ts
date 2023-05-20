@@ -55,10 +55,10 @@ export async function main(ns: NS): Promise<void> {
       ns.print(msg);
       try {
         await client.reportTaskCompleted(item, res);
-			} catch (error) {
+      } catch (error) {
         ns.toast("Error sending task report: " + error);
         await new Promise((r) => setTimeout(r, 1000));
-  		}
+      }
     }
   }
 }
