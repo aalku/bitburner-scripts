@@ -167,7 +167,7 @@ export async function main(ns: NS) {
     function getTime(t: Task) {
       return t.taskType == "grow" ? growTime : t.taskType == "weaken" ? weakenTime : t.taskType == "hack" ? hackTime : 0;
     }
-    const gap = 10; // ms
+    const gap = 100; // ms
     const margin = 1000; // ms
     const batchTime = Math.max(...tasks.map(t=>getTime(t))) + gap * (tasks.length - 1);
     print(`tasks = ${JSON.stringify(tasks)}, Times=${ns.tFormat(weakenTime, true)},${ns.tFormat(growTime, true)},${ns.tFormat(hackTime, true)} totalTime=${ns.tFormat(batchTime, true)}`);
