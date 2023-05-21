@@ -1,4 +1,8 @@
-export const assignments = {
+export const assignments = { // For testing
+  Kirby: "foodnstuff"
+};
+
+export const assignments_real = {
   home: "the-hub",
   Kirby: "foodnstuff",
   Dreamland: "sigma-cosmetics",
