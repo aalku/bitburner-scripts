@@ -3,8 +3,15 @@ import { assignments as untypedAssignments } from "assignments.js";
 
 const assignments: { [workerName: string]: string } = untypedAssignments;
 
-const scripsIndex = { hack: 0, grow: 1, weaken: 2 };
-const scripts = ["batch_hack.js", "batch_grow.js", "batch_weak.js"];
+type TaskType = "hack" | "grow" | "weaken";
+
+type ScriptIndexType = {
+  [name in TaskType]: number;
+};
+
+const scripsIndex: ScriptIndexType = { hack: 0, grow: 1, weaken: 2 };
+
+const scripts = ["batch_hack.js", "batch_grow.js", "batch_weaken.js"];
 let scriptsRam: number[];
 
 type TargetData = {
@@ -25,13 +32,22 @@ type WorkerDataMap = {
   [workerName: string]: WorkerData;
 };
 
+type Task = {
+  taskType: TaskType;
+  threads: number;
+  offset: number | null;
+};
+
 const targetData: TargetDataMap = {};
 
 const workerData: WorkerDataMap = {};
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+let print = (_a: unknown)=>{/* */};
+
 /** @param {NS} ns */
 export async function main(ns: NS) {
-  const print = ns.tprint;
+  print = ns.tprint;
   scriptsRam = scripts.map((s) => ns.getScriptRam(s));
 
   await ns.sleep(1);
@@ -126,13 +142,47 @@ export async function main(ns: NS) {
     );
     const [weakenThreads2, freeRamAfterWeaken2] = calcWeakenThreads(
       w,
-      ns.growthAnalyzeSecurity(growThreads, w.targetName, ns.getServer(w.workerName).cpuCores),
+      ns.growthAnalyzeSecurity(
+        growThreads,
+        w.targetName,
+        ns.getServer(w.workerName).cpuCores
+      ),
       freeRamAfterGrow
     );
     print(
       `Preparing ${w.targetName} with ${weakenThreads1} th for w1, ${growThreads} for g and ${weakenThreads2} th for w2`
     );
-    // TODO
+    const tasks = [
+      { taskType: "weaken", threads: weakenThreads1 } as Task,
+      { taskType: "grow", threads: growThreads } as Task,
+      { taskType: "weaken", threads: weakenThreads2 } as Task,
+    ].filter(t=>t.threads > 0);
+    launch(ns, w, tasks);
+  }
+
+  function launch(ns: NS, w: WorkerData, tasks: Task[]) {
+    const weakenTime = Math.ceil(ns.getWeakenTime(w.targetName));
+    const growTime = Math.ceil(ns.getGrowTime(w.targetName));
+    const hackTime = Math.ceil(ns.getHackTime(w.targetName));
+    function getTime(t: Task) {
+      return t.taskType == "grow" ? growTime : t.taskType == "weaken" ? weakenTime : t.taskType == "hack" ? hackTime : 0;
+    }
+    const gap = 10; // ms
+    const margin = 1000; // ms
+    const batchTime = Math.max(...tasks.map(t=>getTime(t))) + gap * (tasks.length - 1);
+    print(`tasks = ${JSON.stringify(tasks)}, Times=${ns.tFormat(weakenTime, true)},${ns.tFormat(growTime, true)},${ns.tFormat(hackTime, true)} totalTime=${ns.tFormat(batchTime, true)}`);
+    const batchStartTime = Date.now() + margin;
+    const batchEndTime = batchStartTime + batchTime;
+    let gapNumber = tasks.length - 1;
+    for (const t of tasks) {
+      // First is the first to end, so greatest gap at the end so the rest end later
+      const endTime = batchEndTime - gap * (gapNumber--);
+      const startTime = endTime - getTime(t);
+      const scriptName = scripts[scripsIndex[t.taskType]];
+      print(`exec ${JSON.stringify([scriptName, w.workerName, t.threads, w.targetName, new Date(startTime), new Date(endTime)])}`);
+      ns.exec(scriptName, w.workerName, t.threads, w.targetName, startTime, endTime);
+    }
+    print(`totalBatch threads=${tasks.map(t=>t.threads).reduce((o,c)=>(o+c), 0)}, ram=${ns.formatRam(tasks.map(t=>t.threads*getScriptRam(t.taskType)).reduce((o,c)=>(o+c), 0))}`);
   }
 
   function printReasonsToPrepare(w: WorkerData) {
@@ -160,12 +210,14 @@ function getFreeRam(ns: NS, w: WorkerData) {
   return ns.getServerMaxRam(w.workerName) - ns.getServerUsedRam(w.workerName);
 }
 
-function calcMaxThreads(w: WorkerData, kind: string, freeRam: number) {
+function calcMaxThreads(w: WorkerData, kind: TaskType, freeRam: number) {
   return freeRam / getScriptRam(kind);
 }
 
-function getScriptRam(kind: string): number {
-  return scriptsRam[(scripsIndex as any)[kind]];
+function getScriptRam(kind: TaskType): number {
+  const res = scriptsRam[scripsIndex[kind]];
+  print(`getScriptRam(${kind})=${res}`);
+  return res;
 }
 
 function calcWeakenThreads(
