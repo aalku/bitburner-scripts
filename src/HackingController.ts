@@ -128,9 +128,19 @@ export async function main(ns: NS) {
   }
 
   function doWork(ns: NS, w: WorkerData) {
-    print(`Let's give some work to ${w.workerName} hacking ${w.targetName}`);
     const [hackThreads, weakenThreads1, growThreads, weakenThreads2] = calcHWGWThreads(w, ns);
-    // TODO hack
+    if (hackThreads > 0 && growThreads > 0) {
+      const tasks = [
+        { taskType: "hack", threads: hackThreads } as Task,
+        { taskType: "weaken", threads: weakenThreads1 } as Task,
+        { taskType: "grow", threads: growThreads } as Task,
+        { taskType: "weaken", threads: weakenThreads2 } as Task,
+      ];
+      print(`Hacking ${w.targetName} from ${w.workerName}...`);
+      launch(ns, w, tasks);
+    } else {
+      print(`There are not enough resources on ${w.workerName} to hack ${w.targetName}`);
+    }
   }
 
   function doPrepare(ns: NS, w: WorkerData) {
@@ -241,7 +251,7 @@ function calcHWGWThreads(w: WorkerData, ns: NS) {
   /** Hack rate (1/grow) advancing a first step because we shouldn't only grow */
   let rate = 1 - (1 / maxGrowMultiplier) - step;
   while (rate >= step) {
-    print(`  tryRate(${rate})`);
+    // print(`  tryRate(${rate})`);
     const growThreads = Math.ceil(ns.growthAnalyze(w.targetName, 1 / (1 - rate), w.cores));
     const freeRamAfterGrow = freeRam - growThreads * growRamPerThread;
     if (freeRamAfterGrow < 0) {
@@ -262,7 +272,7 @@ function calcHWGWThreads(w: WorkerData, ns: NS) {
     } else {
       // SUCCESS
       print(`calcHWGWThreads(${JSON.stringify(w)})=[${hackThreads}, ${weakenThreads1}, ${growThreads}, ${weakenThreads2}],`
-        + ` rate=${rate}, freeRam=${ns.formatRam(freeRamFinal)}/${ns.formatRam(freeRam)}, maxGrowMultiplier=${maxGrowMultiplier}`);
+        + ` hackMoney=${ns.formatPercent(rate)}, freeRam=${ns.formatRam(freeRamFinal)}/${ns.formatRam(freeRam)}, maxGrowWithAllTheRam=${ns.formatPercent(maxGrowMultiplier)}`);
       return [hackThreads, weakenThreads1, growThreads, weakenThreads2];
     }
   }
