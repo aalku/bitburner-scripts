@@ -25,6 +25,7 @@ type TargetDataMap = {
 type WorkerData = {
   workerName: string;
   targetName: string;
+  cores: number | undefined;
   // workEndTimestamp: number | null;
 };
 
@@ -43,7 +44,7 @@ const targetData: TargetDataMap = {};
 const workerData: WorkerDataMap = {};
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-let print = (_a: unknown)=>{/* */};
+let print = (_a: unknown) => {/* */ };
 
 /** @param {NS} ns */
 export async function main(ns: NS) {
@@ -69,6 +70,7 @@ export async function main(ns: NS) {
     workerData[worker] = {
       workerName: worker,
       targetName: assignments[worker],
+      cores: undefined
     };
   }
   // Prepare targets
@@ -118,21 +120,24 @@ export async function main(ns: NS) {
           printReasonsToPrepare(w);
           doPrepare(ns, w);
         } else {
-          print(
-            `Let's give some work to ${w.workerName} hacking ${w.targetName}`
-          );
+          doWork(ns, w);
         }
-        // TODO hack
       }
     }
     await ns.sleep(1000); // Or wait for something
+  }
+
+  function doWork(ns: NS, w: WorkerData) {
+    print(`Let's give some work to ${w.workerName} hacking ${w.targetName}`);
+    const [hackThreads, weakenThreads1, growThreads, weakenThreads2] = calcHWGWThreads(w, ns);
+    // TODO hack
   }
 
   function doPrepare(ns: NS, w: WorkerData) {
     const [weakenThreads1, freeRamAfterWeaken1] = calcWeakenThreads(
       w,
       ns.getServerSecurityLevel(w.targetName) -
-        ns.getServerMinSecurityLevel(w.targetName),
+      ns.getServerMinSecurityLevel(w.targetName),
       getFreeRam(ns, w)
     );
     const [growThreads, freeRamAfterGrow] = calcGrowThreads(
@@ -156,7 +161,7 @@ export async function main(ns: NS) {
       { taskType: "weaken", threads: weakenThreads1 } as Task,
       { taskType: "grow", threads: growThreads } as Task,
       { taskType: "weaken", threads: weakenThreads2 } as Task,
-    ].filter(t=>t.threads > 0);
+    ].filter(t => t.threads > 0);
     launch(ns, w, tasks);
   }
 
@@ -169,7 +174,7 @@ export async function main(ns: NS) {
     }
     const gap = 100; // ms
     const margin = 1000; // ms
-    const batchTime = Math.max(...tasks.map(t=>getTime(t))) + gap * (tasks.length - 1);
+    const batchTime = Math.max(...tasks.map(t => getTime(t))) + gap * (tasks.length - 1);
     print(`tasks = ${JSON.stringify(tasks)}, Times=${ns.tFormat(weakenTime, true)},${ns.tFormat(growTime, true)},${ns.tFormat(hackTime, true)} totalTime=${ns.tFormat(batchTime, true)}`);
     const batchStartTime = Date.now() + margin;
     const batchEndTime = batchStartTime + batchTime;
@@ -182,7 +187,7 @@ export async function main(ns: NS) {
       print(`exec ${JSON.stringify([scriptName, w.workerName, t.threads, w.targetName, new Date(startTime), new Date(endTime)])}`);
       ns.exec(scriptName, w.workerName, t.threads, w.targetName, startTime, endTime);
     }
-    print(`totalBatch threads=${tasks.map(t=>t.threads).reduce((o,c)=>(o+c), 0)}, ram=${ns.formatRam(tasks.map(t=>t.threads*getScriptRam(t.taskType)).reduce((o,c)=>(o+c), 0))}`);
+    print(`totalBatch threads=${tasks.map(t => t.threads).reduce((o, c) => (o + c), 0)}, ram=${ns.formatRam(tasks.map(t => t.threads * getScriptRam(t.taskType)).reduce((o, c) => (o + c), 0))}`);
   }
 
   function printReasonsToPrepare(w: WorkerData) {
@@ -216,8 +221,52 @@ function calcMaxThreads(w: WorkerData, kind: TaskType, freeRam: number) {
 
 function getScriptRam(kind: TaskType): number {
   const res = scriptsRam[scripsIndex[kind]];
-  print(`getScriptRam(${kind})=${res}`);
+  // print(`getScriptRam(${kind})=${res}`);
   return res;
+}
+
+
+function calcHWGWThreads(w: WorkerData, ns: NS) {
+  const growRamPerThread = getScriptRam("grow");
+  const hackRamPerThread = getScriptRam("hack");
+  const weakenRamPerThread = getScriptRam("weaken");
+  const freeRam = getFreeRam(ns, w);
+  const maxMoney = ns.getServerMaxMoney(w.targetName);
+  /** Step for the calc loop */
+  const step = 0.01;
+  /** How many threads to double growth multiplier */
+  const c = ns.growthAnalyze(w.targetName, 1.000000001, w.cores) / Math.log2(1.000000001);
+  /** Max grow multiplier if using all the ram */
+  let maxGrowMultiplier = Math.pow(2, (freeRam / growRamPerThread) / c);
+  /** Hack rate (1/grow) advancing a first step because we shouldn't only grow */
+  let rate = 1 - (1 / maxGrowMultiplier) - step;
+  while (rate >= step) {
+    print(`  tryRate(${rate})`);
+    const growThreads = Math.ceil(ns.growthAnalyze(w.targetName, 1 / (1 - rate), w.cores));
+    const freeRamAfterGrow = freeRam - growThreads * growRamPerThread;
+    if (freeRamAfterGrow < 0) {
+      // Shouldn't be possible
+      throw new Error("Internal error 1 on calcHWGWThreads");
+    }
+    const hackThreads = Math.floor(ns.hackAnalyzeThreads(w.targetName, maxMoney * rate));
+    const freeRamAfterHack = freeRamAfterGrow - hackThreads * hackRamPerThread;
+    if (freeRamAfterHack < 0) {
+      rate -= step;
+      continue;
+    }
+    const weakenThreads1 = Math.max(Math.ceil(hackThreads * 0.002 / 0.05), 1);
+    const weakenThreads2 = Math.max(Math.ceil(growThreads * 0.004 / 0.05), 1);
+    const freeRamFinal = freeRamAfterHack - (weakenThreads1 + weakenThreads2) * weakenRamPerThread;
+    if (freeRamFinal < 0) {
+      rate -= step;
+    } else {
+      // SUCCESS
+      print(`calcHWGWThreads(${JSON.stringify(w)})=[${hackThreads}, ${weakenThreads1}, ${growThreads}, ${weakenThreads2}],`
+        + ` rate=${rate}, freeRam=${ns.formatRam(freeRamFinal)}/${ns.formatRam(freeRam)}, maxGrowMultiplier=${maxGrowMultiplier}`);
+      return [hackThreads, weakenThreads1, growThreads, weakenThreads2];
+    }
+  }
+  return [0, 0, 0, 0];
 }
 
 function calcWeakenThreads(
