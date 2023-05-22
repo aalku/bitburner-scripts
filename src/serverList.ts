@@ -91,6 +91,8 @@ function getFilter(
       s.canBeHacked(ns.getHackingLevel()) && s.metadata.moneyMax > 0;
   } else if (str == "find") {
     return (s: ServerWrapper) => s.name == flags.name;
+  } else if (str == "codingContracts") {
+    return (s: ServerWrapper) => ns.ls(s.name).filter(f => f.endsWith(".cct")).length > 1;
   }
   return () => true;
 }
@@ -100,7 +102,7 @@ function getFilter(
 function getSorter(str: string, ns: NS) {
   if (str == "money") {
     return (a: ServerWrapper, b: ServerWrapper) =>
-	estimateMoneyPerSecond(ns, b)- estimateMoneyPerSecond(ns, a);
+      estimateMoneyPerSecond(ns, b) - estimateMoneyPerSecond(ns, a);
   } else if (str == "own" || str == "power") {
     return (a: ServerWrapper, b: ServerWrapper) =>
       b.metadata.maxRam - a.metadata.maxRam;
@@ -119,7 +121,7 @@ function getToString(str: string | ScriptArg, ns: NS) {
         mt: ns.tFormat(maxTime(ns, s), false),
         hc: ns.formatPercent(ns.hackAnalyzeChance(s.name)),
         em: "$" + ns.formatNumber(estimateMoneyPerSecond(ns, s), 2) + "/s",
-		th: estimateThreads(ns, s),
+        th: estimateThreads(ns, s),
       });
     };
   } else if (str == "power" || str == "own") {
@@ -133,6 +135,13 @@ function getToString(str: string | ScriptArg, ns: NS) {
     return (s: ServerWrapper) => {
       return "connect " + shortestPath(ns, s).join("; connect ");
     };
+  } else if (str == "codingContracts") {
+    return (s: ServerWrapper) => JSON.stringify({
+      n: s.name,
+      contracts: [...ns.ls(s.name).filter(f => f.endsWith(".cct"))].map(f=>({f, t:ns.codingcontract.getContractType(f, s.name)})),
+      path: "connect " + shortestPath(ns, s).join("; connect "),
+    }, null, "  ");
+
   } else {
     return (s: ServerWrapper) => s.toString();
   }
@@ -203,7 +212,7 @@ function maxTime(ns: NS, s: ServerWrapper): number {
 }
 
 function estimateThreads(ns: NS, s: ServerWrapper) {
-	return Math.ceil(ns.growthAnalyze(s.name, 4));
+  return Math.ceil(ns.growthAnalyze(s.name, 4));
 }
 
 function estimateMoneyPerSecond(ns: NS, s: ServerWrapper): number {
@@ -214,13 +223,13 @@ function estimateMoneyPerSecond(ns: NS, s: ServerWrapper): number {
 }
 
 export function autocomplete(data: { servers: string[] }, args: string[]) {
-	let choices: string[] = [];
-	if (args.length < 1) {
-		choices = choices.concat(["--mode=find"]);
-	}
-	if (args.length == 2 && args[0] == "--mode=find") {
-		choices = choices.concat([...data.servers.map((s) => "--name=" + s)]);
-	}
-	choices.concat(["--limit=10"]);
-	return choices;
+  let choices: string[] = [];
+  if (args.length < 1) {
+    choices = choices.concat(["--mode=find", "--mode=money", "--mode=own", "--mode=power", "--mode=codingContracts"]);
   }
+  if (args.length == 2 && args[0] == "--mode=find") {
+    choices = choices.concat([...data.servers.map((s) => "--name=" + s)]);
+  }
+  choices.concat(["--limit=10"]);
+  return choices;
+}
