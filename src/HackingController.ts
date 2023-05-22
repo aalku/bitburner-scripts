@@ -296,7 +296,7 @@ function calcWeakenThreads(
   }
   const weakenThreads = Math.min(
     calcMaxThreads(w, "weaken", freeRam),
-    calcNeededWeakThreads(securityDecrease)
+    Math.ceil(calcNeededWeakThreads(securityDecrease))
   );
   freeRam -= getScriptRam("weaken") * weakenThreads;
   return [weakenThreads, freeRam] as const;
