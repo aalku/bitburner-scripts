@@ -1,6 +1,17 @@
 /* eslint-disable no-constant-condition */
 import { NS, ScriptArg, Server } from "@ns";
 
+/* I don't share it, make your own... or we can trade :) */
+const solveContractScript = "solveContract.js";
+
+const scriptFlags = [
+  ["mode", ""],
+  ["name", ""],
+  ["limit", 0],
+  ["type", ""],
+  ["action", ""]
+];
+
 let portOpenTools = 0;
 
 /** @param {NS} ns */
@@ -92,14 +103,16 @@ function getFilter(
   } else if (str == "find") {
     return (s: ServerWrapper) => s.name == flags.name;
   } else if (str == "codingContracts") {
-    return (s: ServerWrapper) => ns.ls(s.name).filter(f => f.endsWith(".cct")).length > 1;
+    return (s: ServerWrapper) => {
+      return findServerCodingContracts(ns, s, flags).length > 0
+    };
   }
   return () => true;
 }
 
 /** @param {NS} ns */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getSorter(str: string, ns: NS) {
+function getSorter(str: string, ns: NS, flags: { [key: string]: string[] | ScriptArg }) {
   if (str == "money") {
     return (a: ServerWrapper, b: ServerWrapper) =>
       estimateMoneyPerSecond(ns, b) - estimateMoneyPerSecond(ns, a);
@@ -112,7 +125,7 @@ function getSorter(str: string, ns: NS) {
 }
 
 /** @param {NS} ns */
-function getToString(str: string | ScriptArg, ns: NS) {
+function getToString(str: string | ScriptArg, ns: NS, flags: { [key: string]: string[] | ScriptArg }) {
   if (str == "money") {
     return (s: ServerWrapper) => {
       return JSON.stringify({
@@ -138,7 +151,7 @@ function getToString(str: string | ScriptArg, ns: NS) {
   } else if (str == "codingContracts") {
     return (s: ServerWrapper) => JSON.stringify({
       n: s.name,
-      contracts: [...ns.ls(s.name).filter(f => f.endsWith(".cct"))].map(f=>({f, t:ns.codingcontract.getContractType(f, s.name)})),
+      contracts: findServerCodingContracts(ns, s, flags).map(f => ({ f, t: ns.codingcontract.getContractType(f, s.name), d: JSON.stringify(ns.codingcontract.getData(f, s.name)) })),
       path: "connect " + shortestPath(ns, s).join("; connect "),
     }, null, "  ");
 
@@ -164,11 +177,7 @@ export async function main(ns: NS) {
   if (ns.fileExists("HTTPWorm.exe", "home")) {
     portOpenTools++;
   }
-  const flags: { [key: string]: string[] | ScriptArg } = ns.flags([
-    ["mode", ""],
-    ["name", ""],
-    ["limit", 0],
-  ]);
+  const flags: { [key: string]: string[] | ScriptArg } = ns.flags(scriptFlags);
   const servers = new Map();
   const deep = async function (host = "", path: string[] = []) {
     const found = ns.scan(host || undefined);
@@ -186,14 +195,42 @@ export async function main(ns: NS) {
   ns.clearLog();
   await deep();
   let any = false;
-  const toStringFunction = getToString(flags.mode as string, ns);
+  let actionCount = 0;
+  const toStringFunction = getToString(flags.mode as string, ns, flags);
   [...servers.values()]
     .filter(getFilter(flags.mode as string, ns, flags))
-    .sort(getSorter(flags.mode as string, ns))
+    .sort(getSorter(flags.mode as string, ns, flags))
     .slice(0, flags.limit ? (flags.limit as number) : 999999999)
     .forEach((s) => {
       ns.tprint(`*** ${toStringFunction(s)}`);
       any = true;
+      if (flags.mode == "codingContracts" && flags.action) {
+        const cc = findServerCodingContracts(ns, s, flags);
+        if (flags.action == "cat") {
+          const limit = flags.limit ? flags.limit as number : 10;
+          cc.forEach(f => {
+            if (actionCount++ < limit) {
+              const type = ns.codingcontract.getContractType(f, s.name);
+              const desc = ns.codingcontract.getDescription(f, s.name);
+              const data = ns.codingcontract.getData(f, s.name);
+              ns.alert(`${type}\n\n${desc}\n\ninput=${data}`);
+            }
+            if (actionCount == limit + 1) {
+              ns.alert(`Abort cat after limit ${limit}. You can use --limit=number to rise it.`);
+            }
+          });
+        } else if (flags.action == "solve") {
+          const limit = flags.limit ? flags.limit as number : 10;
+          cc.forEach(f => {
+            if (actionCount++ < limit) {
+              ns.run(solveContractScript, 1, s.name, f);
+            }
+            if (actionCount == limit + 1) {
+              ns.alert(`Abort solve after limit ${limit}. You can use --limit=number to rise it or filter with --type="type".`);
+            }
+          });
+        }
+      }
     });
   if (!any) {
     ns.tprintf(
@@ -222,13 +259,29 @@ function estimateMoneyPerSecond(ns: NS, s: ServerWrapper): number {
   );
 }
 
+function findServerCodingContracts(ns: NS, s: ServerWrapper, flags: { [key: string]: string[] | ScriptArg; }): string[] {
+  const type = flags.type || null;
+  const filter2 = !type ? (x: unknown) => true : (x: string) => {
+    const thisType = ns.codingcontract.getContractType(x, s.name);
+    return thisType == type;
+    // ns.tprint(`  thisType="${thisType}", type="${type}", res="${res}"`);
+  };
+  const res = ns.ls(s.name).filter(f => f.endsWith(".cct")).filter(x => filter2(x));
+  //  ns.tprint(`res=${res}`);
+  return res;
+}
+
 export function autocomplete(data: { servers: string[] }, args: string[]) {
+  console.info(data, args);
   let choices: string[] = [];
-  if (args.length < 1) {
+  if (args.length == 0) {
     choices = choices.concat(["--mode=find", "--mode=money", "--mode=own", "--mode=power", "--mode=codingContracts"]);
   }
-  if (args.length == 2 && args[0] == "--mode=find") {
+  if (args.length == 1 && args[0] == "--mode=find") {
     choices = choices.concat([...data.servers.map((s) => "--name=" + s)]);
+  }
+  if (args.length == 1 && args[0] == "--mode=codingContracts") {
+    // autocomplete is broken so don't bother
   }
   choices.concat(["--limit=10"]);
   return choices;

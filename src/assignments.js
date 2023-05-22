@@ -18,4 +18,5 @@ export const assignments = {
   JuliusCaesar: "computek",
   Zelda: "netlink",
   Kirby: "foodnstuff",
+  House: "summit-uni",
 };

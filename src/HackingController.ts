@@ -295,7 +295,7 @@ function calcWeakenThreads(
     return Math.ceil(securityDecrease / 0.05);
   }
   const weakenThreads = Math.min(
-    calcMaxThreads(w, "weaken", freeRam),
+    Math.floor(calcMaxThreads(w, "weaken", freeRam)),
     Math.ceil(calcNeededWeakThreads(securityDecrease))
   );
   freeRam -= getScriptRam("weaken") * weakenThreads;
@@ -308,8 +308,8 @@ function calcGrowThreads(ns: NS, w: WorkerData, freeRam: number) {
     return growth == 1 ? 0 : Math.ceil(ns.growthAnalyze(t, growth));
   }
   const growThreads = Math.min(
-    calcMaxThreads(w, "grow", freeRam),
-    calcNeededGrowThreads(ns, w.targetName)
+    Math.floor(calcMaxThreads(w, "grow", freeRam)),
+    Math.ceil(calcNeededGrowThreads(ns, w.targetName))
   );
   freeRam -= getScriptRam("grow") * growThreads;
   return [growThreads, freeRam] as const;
