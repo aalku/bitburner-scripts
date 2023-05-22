@@ -1,10 +1,5 @@
-export const assignments = { // For testing
-  Kirby: "foodnstuff"
-};
-
-export const assignments_real = {
+export const assignments = {
   home: "the-hub",
-  Kirby: "foodnstuff",
   Dreamland: "sigma-cosmetics",
   Arrakis: "joesguns",
   Maya: "nectar-net",
@@ -22,4 +17,5 @@ export const assignments_real = {
   Locutus: "rothman-uni",
   JuliusCaesar: "computek",
   Zelda: "netlink",
+  Kirby: "foodnstuff",
 };

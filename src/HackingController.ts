@@ -11,7 +11,7 @@ type ScriptIndexType = {
 
 const scripsIndex: ScriptIndexType = { hack: 0, grow: 1, weaken: 2 };
 
-const scripts = ["batch_hack.js", "batch_grow.js", "batch_weaken.js"];
+const scripts = ["batch_hack.js", "batch_grow.js", "batch_weaken.js", "helper_API_client.js", "Transceiver.js", "HackingStatistics.js"];
 let scriptsRam: number[];
 
 type TargetData = {
@@ -48,7 +48,8 @@ let print = (_a: unknown) => {/* */ };
 
 /** @param {NS} ns */
 export async function main(ns: NS) {
-  print = ns.tprint;
+  // print = ns.tprint;
+  print = ns.print;
   scriptsRam = scripts.map((s) => ns.getScriptRam(s));
 
   await ns.sleep(1);
@@ -115,13 +116,19 @@ export async function main(ns: NS) {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     for (const w of Object.values(workerData)) {
-      if (!isWorking(w, ns)) {
-        if (needsPrepare(ns, w.targetName)) {
-          printReasonsToPrepare(w);
-          doPrepare(ns, w);
-        } else {
-          doWork(ns, w);
+      try {
+        if (!isWorking(w, ns)) {
+          if (needsPrepare(ns, w.targetName)) {
+            printReasonsToPrepare(w);
+            doPrepare(ns, w);
+          } else {
+            doWork(ns, w);
+          }
         }
+      } catch (error) {
+        const msg = `HackingController error with worker ${w.workerName}: ${error}`;
+        print(msg);
+        ns.toast(msg, "error");
       }
     }
     await ns.sleep(1000); // Or wait for something
@@ -182,8 +189,8 @@ export async function main(ns: NS) {
     function getTime(t: Task) {
       return t.taskType == "grow" ? growTime : t.taskType == "weaken" ? weakenTime : t.taskType == "hack" ? hackTime : 0;
     }
-    const gap = 100; // ms
-    const margin = 1000; // ms
+    const gap = 1000; // ms
+    const margin = 2000; // ms
     const batchTime = Math.max(...tasks.map(t => getTime(t))) + gap * (tasks.length - 1);
     print(`tasks = ${JSON.stringify(tasks)}, Times=${ns.tFormat(weakenTime, true)},${ns.tFormat(growTime, true)},${ns.tFormat(hackTime, true)} totalTime=${ns.tFormat(batchTime, true)}`);
     const batchStartTime = Date.now() + margin;
@@ -194,8 +201,8 @@ export async function main(ns: NS) {
       const endTime = batchEndTime - gap * (gapNumber--);
       const startTime = endTime - getTime(t);
       const scriptName = scripts[scripsIndex[t.taskType]];
-      print(`exec ${JSON.stringify([scriptName, w.workerName, t.threads, w.targetName, new Date(startTime), new Date(endTime)])}`);
-      ns.exec(scriptName, w.workerName, t.threads, w.targetName, startTime, endTime);
+      print(`exec ${JSON.stringify([scriptName, w.workerName, t.threads, w.targetName, new Date(startTime), new Date(endTime), w.workerName])}`);
+      ns.exec(scriptName, w.workerName, t.threads, w.targetName, startTime, endTime, w.workerName);
     }
     print(`totalBatch threads=${tasks.map(t => t.threads).reduce((o, c) => (o + c), 0)}, ram=${ns.formatRam(tasks.map(t => t.threads * getScriptRam(t.taskType)).reduce((o, c) => (o + c), 0))}`);
   }
