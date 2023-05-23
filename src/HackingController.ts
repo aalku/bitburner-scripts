@@ -229,7 +229,9 @@ export async function main(ns: NS) {
 }
 
 function getFreeRam(ns: NS, w: WorkerData) {
-  return ns.getServerMaxRam(w.workerName) - ns.getServerUsedRam(w.workerName);
+  // Save some ram at home
+  const factor = w.workerName == "home" ? 0.8 : 1;
+  return (ns.getServerMaxRam(w.workerName) - ns.getServerUsedRam(w.workerName)) * factor;
 }
 
 function calcMaxThreads(w: WorkerData, kind: TaskType, freeRam: number) {
