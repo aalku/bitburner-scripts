@@ -1,4 +1,5 @@
 node_modules/
 dist/
 NetscriptDefinitions.d.ts
-src/solveContract.ts
+src/solveContract*.ts
+src/assignments.js
