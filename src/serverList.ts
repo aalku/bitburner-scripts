@@ -230,6 +230,23 @@ export async function main(ns: NS) {
             }
           });
         }
+      } else if (flags.mode == "own" && flags.action == "own") {
+          if (ns.fileExists("BruteSSH.exe", "home")) {
+              ns.brutessh(s.name);
+          }
+          if (ns.fileExists("FTPCrack.exe", "home")) {
+              ns.ftpcrack(s.name);
+          }
+          if (ns.fileExists("relaySMTP.exe", "home")) {
+              ns.relaysmtp(s.name);
+          }
+          if (ns.fileExists("SQLInject.exe", "home")) {
+              ns.sqlinject(s.name);
+          }
+          if (ns.fileExists("HTTPWorm.exe", "home")) {
+              ns.httpworm(s.name);
+          }
+          ns.nuke(s.name);
       }
     });
   if (!any) {
