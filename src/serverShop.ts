@@ -21,11 +21,11 @@ export async function main(ns: NS) {
       )} would cost $${ns.formatNumber(money, 2)}`
     );
   } else if (operation == "buy-server") {
-    const money = ns.getPurchasedServerCost(ns.args[2] as number);
-    if (ns.purchaseServer(ns.args[1] as string, ns.args[2] as number)) {
+    const money = ns.getPurchasedServerCost(ns.args[1] as number);
+    if (ns.purchaseServer(ns.args[2] as string, ns.args[1] as number)) {
       ns.tprint(
-        `Bought server ${ns.args[1]} with ${ns.formatRam(
-          ns.args[2] as number
+        `Bought server ${ns.args[2]} with ${ns.formatRam(
+          ns.args[1] as number
         )} for $${ns.formatNumber(money, 2)}`
       );
     } else {
@@ -82,7 +82,7 @@ export function autocomplete(data: { servers: string[] }, args : string[]) {
             );
           }
         } else if (args[0] == "buy-server") {
-          if (args.length == 2) {
+          if (args.length == 1) {
             return [];
           } else {
             return Array.from(
