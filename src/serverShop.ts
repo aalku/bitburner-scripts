@@ -70,7 +70,7 @@ export function autocomplete(data: { servers: string[] }, args : string[]) {
         } else if (args[0] == "quote-buy-server") {
           return Array.from(
             { length: 20 },
-            (value, index) => "" + Math.pow(2, index)
+            (_v, index) => "" + Math.pow(2, index)
           );
         } else if (args[0] == "quote-upgrade-server") {
           if (args.length == 2) {
@@ -78,7 +78,7 @@ export function autocomplete(data: { servers: string[] }, args : string[]) {
           } else {
             return Array.from(
               { length: 20 },
-              (value, index) => "" + Math.pow(2, index)
+              (_v, index) => "" + Math.pow(2, index)
             );
           }
         } else if (args[0] == "buy-server") {
@@ -87,7 +87,7 @@ export function autocomplete(data: { servers: string[] }, args : string[]) {
           } else {
             return Array.from(
               { length: 20 },
-              (value, index) => "" + Math.pow(2, index)
+              (_v, index) => "" + Math.pow(2, index)
             );
           }
         } else if (args[0] == "upgrade-server") {
@@ -96,7 +96,7 @@ export function autocomplete(data: { servers: string[] }, args : string[]) {
           } else {
             return Array.from(
               { length: 20 },
-              (value, index) => "" + Math.pow(2, index)
+              (_v, index) => "" + Math.pow(2, index)
             );
           }
         }
