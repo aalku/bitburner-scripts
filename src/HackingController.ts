@@ -1,6 +1,9 @@
 import { NS } from "@ns";
 import { assignments as untypedAssignments } from "assignments.js";
 
+// For the case we hack more than intended we should grow more than expected to be needed.
+const safetyHackDivider = 1.1;
+
 const assignments: { [workerName: string]: string } = untypedAssignments;
 
 type TaskType = "hack" | "grow" | "weaken";
@@ -267,7 +270,7 @@ function calcHWGWThreads(w: WorkerData, ns: NS) {
       // Shouldn't be possible
       throw new Error("Internal error 1 on calcHWGWThreads");
     }
-    const hackThreads = Math.floor(ns.hackAnalyzeThreads(w.targetName, maxMoney * rate));
+    const hackThreads = Math.floor(ns.hackAnalyzeThreads(w.targetName, maxMoney * rate / safetyHackDivider));
     const freeRamAfterHack = freeRamAfterGrow - hackThreads * hackRamPerThread;
     if (freeRamAfterHack < 0) {
       rate -= step;
