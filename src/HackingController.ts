@@ -1,5 +1,13 @@
 import { NS } from "@ns";
 import { assignments as untypedAssignments } from "assignments.js";
+import { Transceiver, Message } from "Transceiver";
+import { HackingStatisticsManager } from "./HackingStatistics";
+import { getHackingAdvice } from "./HackingAdvice";
+
+const PORT_REQUEST = 1;
+const PORT_RESPONSE = 2;
+
+const hackStatisticsFilename = "hackStatistics.txt";
 
 // For the case we hack more than intended we should grow more than expected to be needed.
 const safetyHackDivider = 1.1;
@@ -42,6 +50,11 @@ type Task = {
   offset: number | null;
 };
 
+/**
+ * @param {NS} ns
+ * @param {any} msg
+ * @returns {any}
+ */
 const targetData: TargetDataMap = {};
 
 const workerData: WorkerDataMap = {};
@@ -49,40 +62,60 @@ const workerData: WorkerDataMap = {};
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 let print = (_a: unknown) => {/* */ };
 
+// Now the main loop launching work and waiting for it to finish
+// eslint-disable-next-line no-constant-condition
 /** @param {NS} ns */
 export async function main(ns: NS) {
   // print = ns.tprint;
   print = ns.print;
+
+  print("Hello world!");
+
+  /** @type {Transceiver} */
+  const port = new Transceiver(ns, "HelperServer", PORT_RESPONSE, PORT_REQUEST);
+
+  if (ns.fileExists(hackStatisticsFilename)) {
+    HackingStatisticsManager.instance.import(JSON.stringify(ns.read(hackStatisticsFilename)));
+  }
+
   scriptsRam = scripts.map((s) => ns.getScriptRam(s));
 
+  ns.tail();
+
   await ns.sleep(1);
-  const workers = Object.keys(assignments);
+  const workers = Object.keys(assignments) as string[];
   const targets = [...new Set<string>(Object.values(assignments))];
 
   // Prepare workers
-  for (const worker of workers) {
-    rootServer(worker, ns);
-    ns.scp(scripts, worker);
-    if (worker != "home") {
-      for (const proc of ns.ps(worker)) {
-        if (scripts.indexOf(proc.filename) < 0) {
-          // assume all ram is ours to use so kill anything else
-          ns.scriptKill(proc.filename, worker);
+  for (const worker of workers.filter(w => ns.serverExists(w))) {
+    print(`Server exists(${worker})==${ns.serverExists(worker)}`);
+    const target = assignments[worker];
+    if (rootServer(target, ns)) {
+      targetData[target] = {
+        targetName: target,
+      };
+    } else {
+      print(`Can't root target ${target}`)
+      continue; // No work for this worker
+    }
+    if (rootServer(worker, ns)) {
+      if (worker != "home") {
+        ns.scp(scripts, worker);
+        for (const proc of ns.ps(worker)) {
+          if (scripts.indexOf(proc.filename) < 0) {
+            // assume all ram is ours to use so kill anything else
+            ns.scriptKill(proc.filename, worker);
+          }
         }
       }
+      workerData[worker] = {
+        workerName: worker,
+        targetName: assignments[worker],
+        cores: undefined
+      };
+    } else {
+      print(`Can't root worker ${worker}`)
     }
-    workerData[worker] = {
-      workerName: worker,
-      targetName: assignments[worker],
-      cores: undefined
-    };
-  }
-  // Prepare targets
-  for (const target of targets) {
-    rootServer(target, ns);
-    targetData[target] = {
-      targetName: target,
-    };
   }
   // Look for conflicts
   const conflicts = Object.entries(
@@ -115,8 +148,92 @@ export async function main(ns: NS) {
     }
   }
   await ns.sleep(1);
-  // Now the main loop launching work and waiting for it to finish
-  // eslint-disable-next-line no-constant-condition
+
+
+  /* Api prepare */
+  let lmt = Date.now();
+  /** Received message. Null means not received or already processed */
+  let msg: Message | null = null;
+  /* If msg is not null it means it was being processed when aborted */
+  ns.atExit(() => {
+    /* We try to unread a message being processed at exit so if the server is restarted then that message is not lost */
+    if (msg != null) {
+      port.tryUnread(msg);
+    }
+  });
+
+  function apiAttendMessage(ns: NS, msg: Message): any {
+    if (msg.data.method == "reportTaskCompleted") {
+      const task: any = msg.data.task;
+      const result: any = msg.data.result;
+      if (task.action == "hack") {
+        HackingStatisticsManager.instance.hackResult(
+          msg.source,
+          task.target,
+          result
+        );
+        // ns.tprint( JSON.stringify(HackingStatisticsManager.instance.export() ) );
+        if ((result as number) > 0) {
+          ns.toast(
+            `Hacked $${ns.formatNumber(
+              result as number,
+              0,
+              undefined,
+              true
+            )} from ${task.target}!!`,
+            "success",
+            500
+          );
+        } else {
+          ns.toast(`Hacking ${task.target} failed!!`, "warning", 500);
+        }
+      }
+      return null;
+    } else if (msg.data.method == "getHackingStatistics") {
+      const response = { statistics: HackingStatisticsManager.instance.export() };
+      return response;
+    } else if (msg.data.method == "getHackingAdviceOnTarget") {
+      const target = msg.data.target;
+      const threads = msg.data.threads;
+
+      const response = { advices: getHackingAdvice(ns, target, threads) };
+      return response;
+
+    } else {
+      return {
+        error:
+          "Couldn't understand your order: " +
+          JSON.stringify(msg.data, null, "  "),
+      };
+    }
+  }
+
+  async function doApiWork(timeoutMillis: number) {
+    msg = null; // <-- Important. See variable declaration.
+    msg = await port.receive();
+    if (msg) {
+      lmt = Date.now();
+      // ns.print(`${new Date().toISOString()} - Server received message: ${JSON.stringify(msg)}`);
+      try {
+        const response = apiAttendMessage(ns, msg);
+        if (response) {
+          // ns.print(`response = ${JSON.stringify(response)}`);
+          await port.send(msg.source, response, msg.id);
+        }
+      } catch (e) {
+        ns.print("Helper API server error: " + e);
+        ns.toast("Helper API server error: " + e, "error");
+        await new Promise((r) => setTimeout(r, 1));
+      }
+    } else {
+      // let forTime = lmt == null ? "infinite" : ns.tFormat(Date.now() - lmt);
+      // ns.print(new Date().toISOString() + " - " + "No one talked to us for " + forTime);
+    }
+  }
+
+
+
+
   while (true) {
     for (const w of Object.values(workerData)) {
       try {
@@ -134,7 +251,8 @@ export async function main(ns: NS) {
         ns.toast(msg, "error");
       }
     }
-    await ns.sleep(1000); // Or wait for something
+    // Use some time to attend messages
+    await doApiWork(500);
   }
 
   function doWork(ns: NS, w: WorkerData) {
@@ -233,7 +351,7 @@ export async function main(ns: NS) {
 
 function getFreeRam(ns: NS, w: WorkerData) {
   // Save some ram at home
-  const factor = w.workerName == "home" ? 0.8 : 1;
+  const factor = w.workerName == "home" ? 0.9 : 1;
   return (ns.getServerMaxRam(w.workerName) - ns.getServerUsedRam(w.workerName)) * factor;
 }
 
@@ -257,7 +375,7 @@ function calcHWGWThreads(w: WorkerData, ns: NS) {
   /** Step for the calc loop */
   const step = 0.01;
   /** How many threads to double growth multiplier */
-  const c = ns.growthAnalyze(w.targetName, 1.000000001, w.cores) / Math.log2(1.000000001);
+  const c = Math.ceil(ns.growthAnalyze(w.targetName, 1.000000001, w.cores) / Math.log2(1.000000001));
   /** Max grow multiplier if using all the ram */
   let maxGrowMultiplier = Math.pow(2, (freeRam / growRamPerThread) / c);
   /** Hack rate (1/grow) advancing a first step because we shouldn't only grow */
@@ -267,8 +385,10 @@ function calcHWGWThreads(w: WorkerData, ns: NS) {
     const growThreads = Math.ceil(ns.growthAnalyze(w.targetName, 1 / (1 - rate), w.cores));
     const freeRamAfterGrow = freeRam - growThreads * growRamPerThread;
     if (freeRamAfterGrow < 0) {
-      // Shouldn't be possible
-      throw new Error("Internal error 1 on calcHWGWThreads");
+      // Shouldn't be possible but it is
+      print(`Internal error 1 on calcHWGWThreads: ${freeRam}-${growThreads}x${growRamPerThread}=${freeRamAfterGrow}`);
+      rate -= step;
+      continue;
     }
     const hackThreads = Math.floor(ns.hackAnalyzeThreads(w.targetName, maxMoney * rate / safetyHackDivider));
     const freeRamAfterHack = freeRamAfterGrow - hackThreads * hackRamPerThread;
@@ -336,20 +456,34 @@ function isWorking(w: WorkerData, ns: NS) {
 
 /** @param {NS} ns */
 function rootServer(server: string, ns: NS) {
+  if (ns.hasRootAccess(server)) {
+    return true;
+  }
+  let ports = 0;
   if (ns.fileExists("BruteSSH.exe", "home")) {
     ns.brutessh(server);
+    ports++;
   }
   if (ns.fileExists("FTPCrack.exe", "home")) {
     ns.ftpcrack(server);
+    ports++;
   }
   if (ns.fileExists("relaySMTP.exe", "home")) {
     ns.relaysmtp(server);
+    ports++;
   }
   if (ns.fileExists("SQLInject.exe", "home")) {
     ns.sqlinject(server);
+    ports++;
   }
   if (ns.fileExists("HTTPWorm.exe", "home")) {
     ns.httpworm(server);
+    ports++;
   }
-  ns.nuke(server);
+  if (ns.getServerNumPortsRequired(server) <= ports) {
+    ns.nuke(server);
+    return true;
+  } else {
+    return false;
+  }
 }

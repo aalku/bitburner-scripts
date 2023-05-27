@@ -22,14 +22,20 @@ export async function main(ns: NS) {
     );
   } else if (operation == "buy-server") {
     const money = ns.getPurchasedServerCost(ns.args[1] as number);
-    if (ns.purchaseServer(ns.args[2] as string, ns.args[1] as number)) {
-      ns.tprint(
-        `Bought server ${ns.args[2]} with ${ns.formatRam(
-          ns.args[1] as number
-        )} for $${ns.formatNumber(money, 2)}`
-      );
-    } else {
-      ns.tprint("Could't make it");
+    const ram = ns.args[1] as number;
+    const servers = (ns.args[2] as string).split(/\s*,\s*/);
+    for (const s of servers) {
+      if (ns.serverExists(s)) {
+        ns.tprint(`Already existing server ${s}`);
+      } else if (ns.purchaseServer(s as string, ram)) {
+        ns.tprint(
+          `Bought server ${s} with ${ns.formatRam(
+            ram
+          )} for $${ns.formatNumber(money, 2)}`
+        );
+      } else {
+        ns.tprint(`Could't buy server ${s}`);
+      }
     }
   } else if (operation == "quote-upgrade-server") {
     const money = ns.getPurchasedServerUpgradeCost(ns.args[1] as string, ns.args[2] as number);
@@ -52,8 +58,8 @@ export async function main(ns: NS) {
   }
 }
 
-export function autocomplete(data: { servers: string[] }, args : string[]) {
-  console.info("autocomplete", data, args);
+export function autocomplete(data: { servers: string[] }, args: string[]) {
+  console.warn("autocomplete", data, args);
   try {
     if (args?.length) {
       if (args.length == 1) {
@@ -107,4 +113,5 @@ export function autocomplete(data: { servers: string[] }, args : string[]) {
     console.error(error);
     throw error;
   }
+
 }

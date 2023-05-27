@@ -30,7 +30,7 @@ export class Message {
   /** @returns {Message} */
   static parse(smsg: string): Message {
     const x = JSON.parse(smsg);
-    function p({ source, target, data, id, timeout } : any): Message {
+    function p({ source, target, data, id, timeout }: any): Message {
       return new Message(source, target, data, id, timeout);
     }
     const x2 = p(x);
@@ -149,10 +149,10 @@ export class Transceiver {
    * @param {number} msgId
    * @return {Promise<Message>}
    */
-  async receive(msgId: number|null = null): Promise<Message|null> {
-    const tO = Date.now() + TIMEOUT_SECONDS * 1000;
+  async receive(msgId: number | null = null, timeoutMillis = TIMEOUT_SECONDS * 1000): Promise<Message | null> {
+    const tO = Date.now() + timeoutMillis;
     while (true) {
-      let smsg : string;
+      let smsg: string;
       while (true) {
         smsg = this.rx.read() as string;
         if (smsg == "NULL PORT DATA") {

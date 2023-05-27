@@ -223,7 +223,10 @@ export async function main(ns: NS) {
           const limit = flags.limit ? flags.limit as number : 10;
           cc.forEach(f => {
             if (actionCount++ < limit) {
-              ns.run(solveContractScript, 1, s.name, f);
+              const pid = ns.run(solveContractScript, 1, s.name, f);
+              if (!pid) {
+                ns.tprint(`Can't run script ${solveContractScript}`);
+              }
             }
             if (actionCount == limit + 1) {
               ns.alert(`Abort solve after limit ${limit}. You can use --limit=number to rise it or filter with --type="type".`);
@@ -231,22 +234,30 @@ export async function main(ns: NS) {
           });
         }
       } else if (flags.mode == "own" && flags.action == "own") {
-          if (ns.fileExists("BruteSSH.exe", "home")) {
-              ns.brutessh(s.name);
-          }
-          if (ns.fileExists("FTPCrack.exe", "home")) {
-              ns.ftpcrack(s.name);
-          }
-          if (ns.fileExists("relaySMTP.exe", "home")) {
-              ns.relaysmtp(s.name);
-          }
-          if (ns.fileExists("SQLInject.exe", "home")) {
-              ns.sqlinject(s.name);
-          }
-          if (ns.fileExists("HTTPWorm.exe", "home")) {
-              ns.httpworm(s.name);
-          }
+        let ports = ns.getServerNumPortsRequired(s.name);
+        if (ns.fileExists("BruteSSH.exe", "home")) {
+          ns.brutessh(s.name);
+          ports--;
+        }
+        if (ns.fileExists("FTPCrack.exe", "home")) {
+          ns.ftpcrack(s.name);
+          ports--;
+        }
+        if (ns.fileExists("relaySMTP.exe", "home")) {
+          ns.relaysmtp(s.name);
+          ports--;
+        }
+        if (ns.fileExists("SQLInject.exe", "home")) {
+          ns.sqlinject(s.name);
+          ports--;
+        }
+        if (ns.fileExists("HTTPWorm.exe", "home")) {
+          ns.httpworm(s.name);
+          ports--;
+        }
+        if (ports <= 0) {
           ns.nuke(s.name);
+        }
       }
     });
   if (!any) {
