@@ -75,7 +75,7 @@ export async function main(ns: NS) {
   const port = new Transceiver(ns, "HelperServer", PORT_RESPONSE, PORT_REQUEST);
 
   if (ns.fileExists(hackStatisticsFilename)) {
-    HackingStatisticsManager.instance.import(JSON.stringify(ns.read(hackStatisticsFilename)));
+    HackingStatisticsManager.instance.import(JSON.parse(ns.read(hackStatisticsFilename)), console.log);
   }
 
   scriptsRam = scripts.map((s) => ns.getScriptRam(s));
@@ -162,7 +162,7 @@ export async function main(ns: NS) {
     }
   });
 
-  function apiAttendMessage(ns: NS, msg: Message): any {
+  function attendMessage(ns: NS, msg: Message): any {
     if (msg.data.method == "reportTaskCompleted") {
       const task: any = msg.data.task;
       const result: any = msg.data.result;
@@ -188,6 +188,8 @@ export async function main(ns: NS) {
           ns.toast(`Hacking ${task.target} failed!!`, "warning", 500);
         }
       }
+      const stats = HackingStatisticsManager.instance.export();
+      ns.write(hackStatisticsFilename, JSON.stringify(stats), "w");
       return null;
     } else if (msg.data.method == "getHackingStatistics") {
       const response = { statistics: HackingStatisticsManager.instance.export() };
@@ -215,7 +217,7 @@ export async function main(ns: NS) {
       lmt = Date.now();
       // ns.print(`${new Date().toISOString()} - Server received message: ${JSON.stringify(msg)}`);
       try {
-        const response = apiAttendMessage(ns, msg);
+        const response = attendMessage(ns, msg);
         if (response) {
           // ns.print(`response = ${JSON.stringify(response)}`);
           await port.send(msg.source, response, msg.id);
@@ -367,6 +369,10 @@ function getScriptRam(kind: TaskType): number {
 
 
 function calcHWGWThreads(w: WorkerData, ns: NS) {
+  if (ns.getServerRequiredHackingLevel(w.targetName) > ns.getHackingLevel()) {
+    ns.toast(`Don't have level to hack ${w.targetName}: ${ns.getServerRequiredHackingLevel(w.targetName)}`, "warning");
+    return [0, 0, 0, 0];
+  }
   const growRamPerThread = getScriptRam("grow");
   const hackRamPerThread = getScriptRam("hack");
   const weakenRamPerThread = getScriptRam("weaken");
@@ -391,6 +397,9 @@ function calcHWGWThreads(w: WorkerData, ns: NS) {
       continue;
     }
     const hackThreads = Math.floor(ns.hackAnalyzeThreads(w.targetName, maxMoney * rate / safetyHackDivider));
+    if (hackThreads < 0) {
+      throw (`Internal error: 2`);
+    }
     const freeRamAfterHack = freeRamAfterGrow - hackThreads * hackRamPerThread;
     if (freeRamAfterHack < 0) {
       rate -= step;

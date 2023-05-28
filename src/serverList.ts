@@ -99,7 +99,7 @@ function getFilter(
       (s.isHacked() || s.canBeOwned()) && s.metadata.maxRam > 0;
   } else if (str == "money") {
     return (s: ServerWrapper) =>
-      s.canBeHacked(ns.getHackingLevel()) && s.metadata.moneyMax > 0;
+      s.canBeHacked(ns.getHackingLevel()) && s.metadata.moneyMax > 0; // && ns.hackAnalyzeChance(s.name) >= 0.01;
   } else if (str == "find") {
     return (s: ServerWrapper) => s.name == flags.name;
   } else if (str == "codingContracts") {

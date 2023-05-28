@@ -8,6 +8,15 @@ class HackingStatistics {
   firstHackTimestamp: number | null = null;
   lastHackTimestamp: number | null = null;
   lastHackResult: number | null = null;
+  constructor({hackedMoney = 0, hackSuccessTimes = 0, hackFailTimes = 0, firstHackTimestamp = null, lastHackTimestamp = null, lastHackResult = null} = {}) {
+    this.hackedMoney = hackedMoney;
+    this.hackSuccessTimes = hackSuccessTimes;
+    this.hackFailTimes = hackFailTimes;
+    this.firstHackTimestamp = firstHackTimestamp;
+    this.lastHackTimestamp = lastHackTimestamp;
+    this.lastHackResult = lastHackResult;
+  }
+
   hackResult(hacker: string, result: number, timestamp: number) {
     if (this.firstHackTimestamp == null) {
       this.firstHackTimestamp = timestamp;
@@ -25,6 +34,11 @@ class HackingStatistics {
 class TargetStatistics {
   globalStatistics = new HackingStatistics();
   lastHackHacker: string | null = null;
+  constructor(globalStatistics: any = null, lastHackHacker: string | null = null) {
+    console.log("globalStatistics", globalStatistics);
+    this.globalStatistics = globalStatistics ? new HackingStatistics(globalStatistics) : new HackingStatistics();
+    this.lastHackHacker = lastHackHacker;
+  }
   // TODO per hacker statistics
   hackResult(hacker: string, result: number) {
     const ts = Date.now();
@@ -35,25 +49,31 @@ class TargetStatistics {
 
 export class HackingStatisticsManager {
   getTargets() {
-	  return this._statistics.keys();
+    const limit = Date.now() - 3 * 60 * 60 * 1000;
+    return [...this._statistics.keys()].filter(t => {
+      const s = this._statistics.get(t) as TargetStatistics;
+      const recent = (s.globalStatistics.lastHackTimestamp || s.globalStatistics.firstHackTimestamp || 0) > limit;
+      return recent;
+    });
   }
-  constructor(importDataObject=null) {
+  constructor(importDataObject = null) {
     if (importDataObject) {
-      this.import(importDataObject);
+      this.import(importDataObject, console.log);
     }
   }
   export() {
     return [...this._statistics.entries()].map((e) => ({ server: e[0], data: e[1] })); // TODO
   }
   import(plainObject: any, printFunction: Function = () => null) {
-    // printFunction(`debug: plainObject = ${JSON.stringify(plainObject)}`);
+    printFunction(`debug: plainObject = ${JSON.stringify(plainObject)}`);
     const array = plainObject as { server: string, data: any }[];
-    // printFunction(`debug: plainObject as array = ${JSON.stringify(array)}`);
+    //printFunction(`debug: plainObject as array = ${JSON.stringify(array)}`);
     this._statistics.clear();
     for (const e of array) {
       const server = e.server;
       const data = e.data;
-      const x = data as TargetStatistics;
+      const x = new TargetStatistics(data.globalStatistics, data.lastHackHacker);
+      //printFunction(`  ${server}, ${JSON.stringify(x)}`);
       this._statistics.set(server, x);
     }
   }

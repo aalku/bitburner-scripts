@@ -94,6 +94,7 @@ export async function main(ns: NS): Promise<void> {
 		printFunction(`Hacking advice received: ${JSON.stringify(advice, null, "  ")}`)
 	} else if (order == "hackingStatistics") {
 		let statistics = new HackingStatisticsManager(await client.getHackingStatistics());
+		console.log(statistics);
 		// ns.tprint(`Hacking statistics received: ${JSON.stringify(statistics.export(), null, "  ")}`)
 		const text = [];
 		const alerts = [];

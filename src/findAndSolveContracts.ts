@@ -91,10 +91,10 @@ export async function main(ns: NS) {
   let any = false;
   let actionCount = 0;
   const toStringFunction = getToString(flags.mode as string, ns, flags);
-  [...servers.values()]
+  const filteredServers = [...servers.values()]
     .filter(getFilter(ns, flags))
-    .slice(0, flags.limit ? (flags.limit as number) : 999999999)
-    .forEach((s) => {
+    .slice(0, flags.limit ? (flags.limit as number) : 999999999);
+  for (const s of filteredServers) {
       ns.tprint(`*** ${toStringFunction(s)}`);
       any = true;
       if (flags.action) {
@@ -114,14 +114,15 @@ export async function main(ns: NS) {
           });
         } else if (flags.action == "solve") {
           const limit = flags.limit ? flags.limit as number : 10;
-          cc.forEach(f => {
+          for (const f of cc) {
             if (actionCount++ < limit) {
-              solve(s.name, f, ns);
+              await solve(s.name, f, ns);
+              console.log("after await solve");
             }
             if (actionCount == limit + 1) {
               ns.alert(`Abort solve after limit ${limit}. You can use --limit=number to rise it or filter with --type="type".`);
             }
-          });
+          };
         }
       }
     });
