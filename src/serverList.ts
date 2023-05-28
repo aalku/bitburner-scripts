@@ -114,8 +114,7 @@ function getFilter(
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getSorter(str: string, ns: NS, flags: { [key: string]: string[] | ScriptArg }) {
   if (str == "money") {
-    return (a: ServerWrapper, b: ServerWrapper) =>
-      estimateMoneyPerSecond(ns, b) - estimateMoneyPerSecond(ns, a);
+    return (a: ServerWrapper, b: ServerWrapper) => ((b.metadata.moneyMax || 0) / (b.metadata.minDifficulty || 1) - (a.metadata.moneyMax || 0) / (a.metadata.minDifficulty || 1))
   } else if (str == "own" || str == "power") {
     return (a: ServerWrapper, b: ServerWrapper) =>
       b.metadata.maxRam - a.metadata.maxRam;
@@ -134,6 +133,7 @@ function getToString(str: string | ScriptArg, ns: NS, flags: { [key: string]: st
         mt: ns.tFormat(maxTime(ns, s), false),
         hc: ns.formatPercent(ns.hackAnalyzeChance(s.name)),
         em: "$" + ns.formatNumber(estimateMoneyPerSecond(ns, s), 2) + "/s",
+        md: s.metadata.minDifficulty||-1,
         th: estimateThreads(ns, s),
       });
     };
