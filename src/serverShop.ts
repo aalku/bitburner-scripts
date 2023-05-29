@@ -45,15 +45,19 @@ export async function main(ns: NS) {
       )} would cost $${ns.formatNumber(money, 2)}`
     );
   } else if (operation == "upgrade-server") {
-    const money = ns.getPurchasedServerUpgradeCost(ns.args[1] as string, ns.args[2] as number);
-    if (ns.upgradePurchasedServer(ns.args[1] as string, ns.args[2] as number)) {
-      ns.tprint(
-        `Server ${ns.args[1]} was upgraded to ${ns.formatRam(
-          ns.args[2] as number
-        )} for $${ns.formatNumber(money, 2)}`
-      );
-    } else {
-      ns.tprint("Can't make that upgrade");
+    const servers = ns.args[2] as string;
+    const memory = ns.args[1] as number;
+    for (const server of servers.split(/\s*,\s*/)) {
+      const money = ns.getPurchasedServerUpgradeCost(server, memory);
+      if (ns.upgradePurchasedServer(server, memory)) {
+        ns.tprint(
+          `Server ${server} was upgraded to ${ns.formatRam(
+            memory
+          )} for $${ns.formatNumber(money, 2)}`
+        );
+      } else {
+        ns.tprint("Can't make that upgrade");
+      }
     }
   }
 }
