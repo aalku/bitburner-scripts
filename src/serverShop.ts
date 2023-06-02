@@ -34,29 +34,41 @@ export async function main(ns: NS) {
           )} for $${ns.formatNumber(money, 2)}`
         );
       } else {
-        ns.tprint(`Could't buy server ${s}`);
+        ns.tprint(`Could't buy server ${s}. Do you really have $${ns.formatNumber(money, 2)}?`);
       }
     }
   } else if (operation == "quote-upgrade-server") {
-    const money = ns.getPurchasedServerUpgradeCost(ns.args[1] as string, ns.args[2] as number);
-    ns.tprint(
-      `Upgrading ${ns.args[1]} to ${ns.formatRam(
-        ns.args[2] as number
-      )} would cost $${ns.formatNumber(money, 2)}`
-    );
+    const servers = ns.args[2] as string;
+    const memory = ns.args[1] as number;
+    for (const server of servers.split(/\s*,\s*/)) {
+      const money = ns.getPurchasedServerUpgradeCost(server, memory);
+      if (money <= 0) {
+        ns.tprint(
+          `Server ${server} already has >= ${ns.formatRam(memory)}`
+        );
+      } else {
+        ns.tprint(
+          `Upgrading ${server} to ${ns.formatRam(memory)} would cost $${ns.formatNumber(money, 2)}`
+        );
+      }
+    }
   } else if (operation == "upgrade-server") {
     const servers = ns.args[2] as string;
     const memory = ns.args[1] as number;
     for (const server of servers.split(/\s*,\s*/)) {
       const money = ns.getPurchasedServerUpgradeCost(server, memory);
-      if (ns.upgradePurchasedServer(server, memory)) {
+      if (money <= 0) {
+        ns.tprint(
+          `Server ${server} already has >= ${ns.formatRam(memory)}`
+        );
+      } else if (ns.upgradePurchasedServer(server, memory)) {
         ns.tprint(
           `Server ${server} was upgraded to ${ns.formatRam(
             memory
           )} for $${ns.formatNumber(money, 2)}`
         );
       } else {
-        ns.tprint("Can't make that upgrade");
+        ns.tprint(`Can't make that upgrade. Do you really have $${ns.formatNumber(money, 2)}?`);
       }
     }
   }
