@@ -95,37 +95,37 @@ export async function main(ns: NS) {
     .filter(getFilter(ns, flags))
     .slice(0, flags.limit ? (flags.limit as number) : 999999999);
   for (const s of filteredServers) {
-      ns.tprint(`*** ${toStringFunction(s)}`);
-      any = true;
-      if (flags.action) {
-        const cc = findServerCodingContracts(ns, s, flags);
-        if (flags.action == "cat") {
-          const limit = flags.limit ? flags.limit as number : 10;
-          cc.forEach(f => {
-            if (actionCount++ < limit) {
-              const type = ns.codingcontract.getContractType(f, s.name);
-              const desc = ns.codingcontract.getDescription(f, s.name);
-              const data = ns.codingcontract.getData(f, s.name);
-              ns.alert(`${type}\n\n${desc}\n\ninput=${data}`);
-            }
-            if (actionCount == limit + 1) {
-              ns.alert(`Abort cat after limit ${limit}. You can use --limit=number to rise it.`);
-            }
-          });
-        } else if (flags.action == "solve") {
-          const limit = flags.limit ? flags.limit as number : 10;
-          for (const f of cc) {
-            if (actionCount++ < limit) {
-              await solve(s.name, f, ns);
-              console.log("after await solve");
-            }
-            if (actionCount == limit + 1) {
-              ns.alert(`Abort solve after limit ${limit}. You can use --limit=number to rise it or filter with --type="type".`);
-            }
-          };
-        }
+    ns.tprint(`*** ${toStringFunction(s)}`);
+    any = true;
+    if (flags.action) {
+      const cc = findServerCodingContracts(ns, s, flags);
+      if (flags.action == "cat") {
+        const limit = flags.limit ? flags.limit as number : 10;
+        cc.forEach(f => {
+          if (actionCount++ < limit) {
+            const type = ns.codingcontract.getContractType(f, s.name);
+            const desc = ns.codingcontract.getDescription(f, s.name);
+            const data = ns.codingcontract.getData(f, s.name);
+            ns.alert(`${type}\n\n${desc}\n\ninput=${data}`);
+          }
+          if (actionCount == limit + 1) {
+            ns.alert(`Abort cat after limit ${limit}. You can use --limit=number to rise it.`);
+          }
+        });
+      } else if (flags.action == "solve") {
+        const limit = flags.limit ? flags.limit as number : 10;
+        for (const f of cc) {
+          if (actionCount++ < limit) {
+            await solve(s.name, f, ns);
+            console.log("after await solve");
+          }
+          if (actionCount == limit + 1) {
+            ns.alert(`Abort solve after limit ${limit}. You can use --limit=number to rise it or filter with --type="type".`);
+          }
+        };
       }
-    });
+    }
+  }
   if (!any) {
     ns.tprintf(
       "No results found after filter. Total results = %d",
